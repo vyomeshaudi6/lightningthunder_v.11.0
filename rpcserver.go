@@ -63,13 +63,14 @@ import (
 	"github.com/lightningnetwork/lnd/record"
 	"github.com/lightningnetwork/lnd/routing"
 	"github.com/lightningnetwork/lnd/routing/route"
-	"github.com/lightningnetwork/lnd/signal"
+	//"github.com/lightningnetwork/lnd/signal"
 	"github.com/lightningnetwork/lnd/sweep"
 	"github.com/lightningnetwork/lnd/watchtower"
 	"github.com/lightningnetwork/lnd/zpay32"
 	"github.com/tv42/zbase32"
 	"google.golang.org/grpc"
 	"gopkg.in/macaroon-bakery.v2/bakery"
+	"github.com/btcsuite/btcwallet/wallet"
 )
 
 var (
@@ -516,7 +517,7 @@ type rpcServer struct {
 
 	// routerBackend contains the backend implementation of the router
 	// rpc sub server.
-	routerBackend *routerrpc.RouterBackend
+	routerBackend routerrpc.RouterBackend
 
 	// chanPredicate is used in the bidirectional ChannelAcceptor streaming
 	// method.
@@ -534,6 +535,8 @@ type rpcServer struct {
 	// allPermissions is a map of all registered gRPC URIs (including
 	// internal and external subservers) to the permissions they require.
 	allPermissions map[string][]bakery.Op
+	//code edit to start stop node
+	Loader	*wallet.Loader
 }
 
 // A compile time check to ensure that rpcServer fully implements the
@@ -546,12 +549,12 @@ var _ lnrpc.LightningServer = (*rpcServer)(nil)
 // base level options passed to the grPC server. This typically includes things
 // like requiring TLS, etc.
 func newRPCServer(cfg *Config, s *server, macService *macaroons.Service,
-	subServerCgs *subRPCServerConfigs, serverOpts []grpc.ServerOption,
+	subServerCgs subRPCServerConfigs, serverOpts []grpc.ServerOption,
 	restDialOpts []grpc.DialOption, restProxyDest string,
 	atpl *autopilot.Manager, invoiceRegistry *invoices.InvoiceRegistry,
 	tower *watchtower.Standalone, tlsCfg *tls.Config,
 	getListeners rpcListeners,
-	chanPredicate *chanacceptor.ChainedAcceptor) (*rpcServer, error) {
+	chanPredicate *chanacceptor.ChainedAcceptor, UserId string, Loader *wallet.Loader,) (*rpcServer, error) {
 
 	// Set up router rpc backend.
 	channelGraph := s.localChanDB.ChannelGraph()
@@ -560,7 +563,8 @@ func newRPCServer(cfg *Config, s *server, macService *macaroons.Service,
 		return nil, err
 	}
 	graph := s.localChanDB.ChannelGraph()
-	routerBackend := &routerrpc.RouterBackend{
+	routerBackend := routerrpc.RouterBackend{
+		User_Id:  UserId,
 		SelfNode: selfNode.PubKeyBytes,
 		FetchChannelCapacity: func(chanID uint64) (btcutil.Amount,
 			error) {
@@ -611,7 +615,7 @@ func newRPCServer(cfg *Config, s *server, macService *macaroons.Service,
 	//
 	// TODO(roasbeef): extend sub-sever config to have both (local vs remote) DB
 	err = subServerCgs.PopulateDependencies(
-		cfg, s.cc, cfg.networkDir, macService, atpl, invoiceRegistry,
+		cfg, s.cc, cfg.graphDir, macService, atpl, invoiceRegistry,
 		s.htlcSwitch, cfg.ActiveNetParams.Params, s.chanRouter,
 		routerBackend, s.nodeSigner, s.remoteChanDB, s.sweeper, tower,
 		s.towerClient, cfg.net.ResolveTCPAddr, genInvoiceFeatures,
@@ -625,7 +629,7 @@ func newRPCServer(cfg *Config, s *server, macService *macaroons.Service,
 	// can create each sub-server!
 	registeredSubServers := lnrpc.RegisteredSubServers()
 	for _, subServer := range registeredSubServers {
-		subServerInstance, macPerms, err := subServer.New(subServerCgs)
+		subServerInstance, macPerms, err := subServer.New(subServerCgs, UserId)
 		if err != nil {
 			return nil, err
 		}
@@ -635,6 +639,10 @@ func newRPCServer(cfg *Config, s *server, macService *macaroons.Service,
 		// interceptors below.
 		subServers = append(subServers, subServerInstance)
 		subServerPerms = append(subServerPerms, macPerms)
+	// storing subserverindtances of particular subserver for all nodes vyomresh
+		routerrpc.Subserverpointers = append(routerrpc.Subserverpointers, subServerInstance)
+
+
 	}
 
 	// Next, we need to merge the set of sub server macaroon permissions
@@ -761,6 +769,7 @@ func newRPCServer(cfg *Config, s *server, macService *macaroons.Service,
 		macService:      macService,
 		selfNode:        selfNode.PubKeyBytes,
 		allPermissions:  permissions,
+		Loader:		 Loader,
 	}
 	lnrpc.RegisterLightningServer(grpcServer, rootRPCServer)
 
@@ -899,11 +908,16 @@ func (r *rpcServer) Start() error {
 	// Now spin up a network listener for each requested port and start a
 	// goroutine that serves REST with the created mux there.
 	for _, restEndpoint := range r.cfg.RESTListeners {
+		//if i == 0 {
+		//	i = i + 1
+		//	continue
+		//}
 		lis, err := lncfg.TLSListenOnAddress(restEndpoint, r.tlsCfg)
 		if err != nil {
 			ltndLog.Errorf("gRPC proxy unable to listen on %s",
 				restEndpoint)
 			return err
+			//continue
 		}
 
 		r.listenerCleanUp = append(r.listenerCleanUp, func() {
@@ -923,6 +937,7 @@ func (r *rpcServer) Start() error {
 				rpcsLog.Error(err)
 			}
 		}()
+		break
 	}
 
 	return nil
@@ -950,6 +965,8 @@ func (r *rpcServer) Stop() error {
 				subServer.Name(), err)
 			continue
 		}
+		rpcsLog.Infof("Stopped %v Sub-RPC Server success",
+			subServer.Name())
 	}
 
 	// Finally, we can clean up all the listening sockets to ensure that we
@@ -5365,7 +5382,16 @@ func (r *rpcServer) GetNetworkInfo(ctx context.Context,
 func (r *rpcServer) StopDaemon(ctx context.Context,
 	_ *lnrpc.StopRequest) (*lnrpc.StopResponse, error) {
 
-	signal.RequestShutdown()
+	//code edit to stop rpc and server instance of particular node
+	
+	if !r.cfg.NoMacaroons {
+	r.macService.Close()
+	}
+	r.server.chanDB.Close()
+	r.Loader. UnloadWallet()
+	r.Stop() // rpc server stopped
+	r.server.Stop() //server instance stopped
+	//signal.RequestShutdown()
 	return &lnrpc.StopResponse{}, nil
 }
 
