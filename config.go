@@ -22,7 +22,7 @@ import (
 	flags "github.com/jessevdk/go-flags"
 	"github.com/lightningnetwork/lnd/autopilot"
 	"github.com/lightningnetwork/lnd/build"
-	"github.com/lightningnetwork/lnd/chanbackup"
+	//"github.com/lightningnetwork/lnd/chanbackup"
 	"github.com/lightningnetwork/lnd/channeldb"
 	"github.com/lightningnetwork/lnd/discovery"
 	"github.com/lightningnetwork/lnd/htlcswitch"
@@ -40,11 +40,12 @@ const (
 	defaultChainSubDirname    = "chain"
 	defaultGraphSubDirname    = "graph"
 	defaultTowerSubDirname    = "watchtower"
-	defaultTLSCertFilename    = "tls.cert"
-	defaultTLSKeyFilename     = "tls.key"
-	defaultAdminMacFilename   = "admin.macaroon"
-	defaultReadMacFilename    = "readonly.macaroon"
-	defaultInvoiceMacFilename = "invoice.macaroon"
+	DefaultTLSCertFilename    = "tls.cert"
+	DefaultTLSKeyFilename     = "tls.key"
+	DefaultAdminMacFilename   = "admin.macaroon"
+	DefaultReadMacFilename    = "readonly.macaroon"
+	DefaultInvoiceMacFilename = "invoice.macaroon"
+	DefaultBackupFileName = "channel.backup" //code edit
 	defaultLogLevel           = "info"
 	defaultLogDirname         = "logs"
 	defaultLogFilename        = "lnd.log"
@@ -130,8 +131,8 @@ var (
 
 	defaultTowerDir = filepath.Join(defaultDataDir, defaultTowerSubDirname)
 
-	defaultTLSCertPath    = filepath.Join(DefaultLndDir, defaultTLSCertFilename)
-	defaultTLSKeyPath     = filepath.Join(DefaultLndDir, defaultTLSKeyFilename)
+	defaultTLSCertPath    = filepath.Join(DefaultLndDir, DefaultTLSCertFilename)
+	defaultTLSKeyPath     = filepath.Join(DefaultLndDir, DefaultTLSKeyFilename)
 	defaultLetsEncryptDir = filepath.Join(DefaultLndDir, defaultLetsEncryptDirname)
 
 	defaultBtcdDir         = btcutil.AppDataDir("btcd", false)
@@ -234,7 +235,7 @@ type Config struct {
 
 	Tor *lncfg.Tor `group:"Tor" namespace:"tor"`
 
-	SubRPCServers *subRPCServerConfigs `group:"subrpc"`
+	SubRPCServers subRPCServerConfigs `group:"subrpc"`
 
 	Hodl *hodl.Config `group:"hodl" namespace:"hodl"`
 
@@ -316,7 +317,8 @@ type Config struct {
 	// network. This path will hold the files related to each different
 	// network.
 	networkDir string
-
+	//vyomesh code edit 
+	graphDir string
 	// ActiveNetParams contains parameters of the target chain.
 	ActiveNetParams bitcoinNetParams
 }
@@ -378,7 +380,7 @@ func DefaultConfig() Config {
 		MinBackoff:         defaultMinBackoff,
 		MaxBackoff:         defaultMaxBackoff,
 		ConnectionTimeout:  tor.DefaultConnTimeout,
-		SubRPCServers: &subRPCServerConfigs{
+		SubRPCServers: subRPCServerConfigs{
 			SignRPC:   &signrpc.Config{},
 			RouterRPC: routerrpc.DefaultConfig(),
 		},
@@ -459,7 +461,7 @@ func DefaultConfig() Config {
 // 	2) Pre-parse the command line to check for an alternative config file
 // 	3) Load configuration file overwriting defaults with any specified options
 // 	4) Parse CLI options and overwrite/add any specified options
-func LoadConfig() (*Config, error) {
+func LoadConfig((User_Id string) (*Config, error) {
 	// Pre-parse the command line options to pick up an alternative config
 	// file.
 	preCfg := DefaultConfig()
@@ -490,7 +492,15 @@ func LoadConfig() (*Config, error) {
 			)
 		}
 	}
+	//code edit for custom lnd config for each node
+	customlndConfigPath := filepath.Join("~/gocode/dev/test_data_PrvW",
+			defaultGraphSubDirname,
+			normalizeNetwork(activeNetParams.Name), User_Id,lncfg.DefaultConfigFilename)
 
+	if User_Id != ""  {
+	 preCfg.ConfigFile = CleanAndExpandPath(customlndConfigPath)
+	 configFilePath = CleanAndExpandPath(customlndConfigPath)
+	 }
 	// Next, load any additional configuration options from the file.
 	var configFileError error
 	cfg := preCfg
@@ -504,7 +514,7 @@ func LoadConfig() (*Config, error) {
 
 		configFileError = err
 	}
-
+ 	//fmt.Println("cfg.ConfigFile : %t , configFilePath : %t , cfg.LndDir %t",cfg.ConfigFile,configFilePath ,cfg.LndDir)
 	// Finally, parse the remaining command line options again to ensure
 	// they take precedence.
 	if _, err := flags.Parse(&cfg); err != nil {
@@ -539,8 +549,8 @@ func ValidateConfig(cfg Config, usageMessage string) (*Config, error) {
 		cfg.LetsEncryptDir = filepath.Join(
 			lndDir, defaultLetsEncryptDirname,
 		)
-		cfg.TLSCertPath = filepath.Join(lndDir, defaultTLSCertFilename)
-		cfg.TLSKeyPath = filepath.Join(lndDir, defaultTLSKeyFilename)
+		cfg.TLSCertPath = filepath.Join(lndDir, DefaultTLSCertFilename)
+		cfg.TLSKeyPath = filepath.Join(lndDir, DefaultTLSKeyFilename)
 		cfg.LogDir = filepath.Join(lndDir, defaultLogDirname)
 
 		// If the watchtower's directory is set to the default, i.e. the
@@ -980,7 +990,7 @@ func ValidateConfig(cfg Config, usageMessage string) (*Config, error) {
 			return nil, fmt.Errorf(str, funcName)
 		}
 
-		cfg.Bitcoin.ChainDir = filepath.Join(cfg.DataDir,
+		cfg.Bitcoin.ChainDir = filepath.Join("/home/vyomesh/gocode/dev/tstn1/test_data",
 			defaultChainSubDirname,
 			bitcoinChain.String())
 
@@ -1039,28 +1049,28 @@ func ValidateConfig(cfg Config, usageMessage string) (*Config, error) {
 
 	// We'll now construct the network directory which will be where we
 	// store all the data specific to this chain/network.
-	cfg.networkDir = filepath.Join(
-		cfg.DataDir, defaultChainSubDirname,
+	networkDir = filepath.Join(
+		"/home/vyomesh/gocode/dev/tstn1/test_data", defaultChainSubDirname,
 		cfg.registeredChains.PrimaryChain().String(),
 		normalizeNetwork(cfg.ActiveNetParams.Name),
 	)
-
+/*
 	// If a custom macaroon directory wasn't specified and the data
 	// directory has changed from the default path, then we'll also update
 	// the path for the macaroons to be generated.
 	if cfg.AdminMacPath == "" {
 		cfg.AdminMacPath = filepath.Join(
-			cfg.networkDir, defaultAdminMacFilename,
+			cfg.networkDir, DefaultAdminMacFilename,
 		)
 	}
 	if cfg.ReadMacPath == "" {
 		cfg.ReadMacPath = filepath.Join(
-			cfg.networkDir, defaultReadMacFilename,
+			cfg.networkDir, DefaultReadMacFilename,
 		)
 	}
 	if cfg.InvoiceMacPath == "" {
 		cfg.InvoiceMacPath = filepath.Join(
-			cfg.networkDir, defaultInvoiceMacFilename,
+			cfg.networkDir, DefaultInvoiceMacFilename,
 		)
 	}
 
@@ -1071,7 +1081,7 @@ func ValidateConfig(cfg Config, usageMessage string) (*Config, error) {
 			cfg.networkDir, chanbackup.DefaultBackupFileName,
 		)
 	}
-
+*/
 	// Append the network type to the log directory so it is "namespaced"
 	// per network in the same fashion as the data directory.
 	cfg.LogDir = filepath.Join(cfg.LogDir,
@@ -1271,10 +1281,10 @@ func ValidateConfig(cfg Config, usageMessage string) (*Config, error) {
 
 // localDatabaseDir returns the default directory where the
 // local bolt db files are stored.
-func (c *Config) localDatabaseDir() string {
-	return filepath.Join(c.DataDir,
+func (c *Config) localDatabaseDir(UserId string) string {
+	return filepath.Join("test_data_PrvW",
 		defaultGraphSubDirname,
-		normalizeNetwork(c.ActiveNetParams.Name))
+		normalizeNetwork(c.ActiveNetParams.Name),UserId)
 }
 
 func (c *Config) networkName() string {
