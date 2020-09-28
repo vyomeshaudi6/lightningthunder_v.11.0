@@ -139,7 +139,8 @@ type server struct {
 	stop  sync.Once
 
 	cfg *Config
-
+	// added user id for server instances on multiple port and checking them on time of lightning commands
+	User_Id string
 	// identityECDH is an ECDH capable wrapper for the private key used
 	// to authenticate any incoming connections.
 	identityECDH keychain.SingleKeyECDH
@@ -342,7 +343,7 @@ func newServer(cfg *Config, listenAddrs []net.Addr,
 	nodeKeyDesc *keychain.KeyDescriptor,
 	chansToRestore walletunlocker.ChannelsToRecover,
 	chanPredicate chanacceptor.ChannelAcceptor,
-	torController *tor.Controller) (*server, error) {
+	torController *tor.Controller, UserId string) (*server, error) {
 
 	var (
 		err           error
@@ -362,7 +363,9 @@ func newServer(cfg *Config, listenAddrs []net.Addr,
 		)
 		if err != nil {
 			return nil, err
+			//continue
 		}
+		
 	}
 
 	var serializedPubKey [33]byte
@@ -372,7 +375,7 @@ func newServer(cfg *Config, listenAddrs []net.Addr,
 	// the same directory as the channel graph database. We don't need to
 	// replicate this data, so we'll store it locally.
 	sharedSecretPath := filepath.Join(
-		cfg.localDatabaseDir(), defaultSphinxDbName,
+		cfg.localDatabaseDir(UserId), defaultSphinxDbName,
 	)
 	replayLog := htlcswitch.NewDecayedLog(sharedSecretPath, cc.chainNotifier)
 	sphinxRouter := sphinx.NewRouter(
@@ -418,6 +421,8 @@ func newServer(cfg *Config, listenAddrs []net.Addr,
 	}
 
 	s := &server{
+		// added userid
+		User_Id:        UserId,
 		cfg:            cfg,
 		localChanDB:    localChanDB,
 		remoteChanDB:   remoteChanDB,
@@ -567,10 +572,9 @@ func newServer(cfg *Config, listenAddrs []net.Addr,
 
 	// If we were requested to automatically configure port forwarding,
 	// we'll use the ports that the server will be listening on.
-	externalIPStrings := make([]string, len(cfg.ExternalIPs))
-	for idx, ip := range cfg.ExternalIPs {
-		externalIPStrings[idx] = ip.String()
-	}
+	externalIPStrings := make([]string, 1)
+	externalIPStrings[0] = cfg.ExternalIPs[0].String()
+	
 	if s.natTraversal != nil {
 		listenPorts := make([]uint16, 0, len(listenAddrs))
 		for _, listenAddr := range listenAddrs {
