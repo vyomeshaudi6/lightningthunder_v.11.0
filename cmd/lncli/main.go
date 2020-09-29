@@ -294,6 +294,11 @@ func main() {
 				"macaroon jar instead of the default one. " +
 				"Can only be used if profiles are defined.",
 		},
+		cli.StringFlag{
+			Name:  "User_Id", // code edit
+			Value: "DefaultValue",
+			Usage: "set unique user id for every new user",
+		},
 	}
 	app.Commands = []cli.Command{
 		createCommand,

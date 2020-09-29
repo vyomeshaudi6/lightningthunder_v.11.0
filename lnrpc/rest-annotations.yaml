@@ -142,15 +142,15 @@ http:
 
     # walletunlocker.proto
     - selector: lnrpc.WalletUnlocker.GenSeed
-      get: "/v1/genseed"
+      get: "/v1/genseed/{User_Id}"
     - selector: lnrpc.WalletUnlocker.InitWallet
-      post: "/v1/initwallet"
+      post: "/v1/initwallet/{User_Id}"
       body: "*"
     - selector: lnrpc.WalletUnlocker.UnlockWallet
-      post: "/v1/unlockwallet"
+      post: "/v1/unlockwallet/{User_Id}"
       body: "*"
     - selector: lnrpc.WalletUnlocker.ChangePassword
-      post: "/v1/changepassword"
+      post: "/v1/changepassword/{User_Id}"
       body: "*"
 
     # autopilotrpc/autopilot.proto

@@ -82,6 +82,7 @@ message GenSeedRequest {
     When using REST, this field must be encoded as base64.
     */
     bytes seed_entropy = 2;
+    string User_Id = 3;
 }
 message GenSeedResponse {
     /*
@@ -141,6 +142,7 @@ message InitWalletRequest {
     recover the funds in each channel from a remote force closed transaction.
     */
     ChanBackupSnapshot channel_backups = 5;
+    string User_Id = 6;
 }
 message InitWalletResponse {
 }
@@ -171,6 +173,7 @@ message UnlockWalletRequest {
     recover the funds in each channel from a remote force closed transaction.
     */
     ChanBackupSnapshot channel_backups = 3;
+    string User_Id = 4;
 }
 message UnlockWalletResponse {
 }
@@ -187,6 +190,7 @@ message ChangePasswordRequest {
     daemon. When using REST, this field must be encoded as base64.
     */
     bytes new_password = 2;
+    string User_Id = 3;
 }
 message ChangePasswordResponse {
 }
