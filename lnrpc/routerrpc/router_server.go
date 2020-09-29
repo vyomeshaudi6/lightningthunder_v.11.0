@@ -122,7 +122,8 @@ type Server struct {
 	shutdown                 int32 // To be used atomically.
 	forwardInterceptorActive int32 // To be used atomically.
 
-	cfg *Config
+	User_Id                  string
+	cfg                      Config
 
 	quit chan struct{}
 }
@@ -146,7 +147,7 @@ func fileExists(name string) bool {
 // we're unable to create it, then an error will be returned. We also return
 // the set of permissions that we require as a server. At the time of writing
 // of this documentation, this is the same macaroon as as the admin macaroon.
-func New(cfg *Config) (*Server, lnrpc.MacaroonPerms, error) {
+func New(cfg Config, UserId string) (*Server, lnrpc.MacaroonPerms, error) {
 	// If the path of the router macaroon wasn't generated, then we'll
 	// assume that it's found at the default network directory.
 	if cfg.RouterMacPath == "" {
@@ -186,6 +187,7 @@ func New(cfg *Config) (*Server, lnrpc.MacaroonPerms, error) {
 	routerServer := &Server{
 		cfg:  cfg,
 		quit: make(chan struct{}),
+		User_Id: UserId, //code edit
 	}
 
 	return routerServer, macPermissions, nil

@@ -35,7 +35,7 @@ import (
 // TODO(roasbeef): expose all fee conf targets
 
 const defaultRecoveryWindow int32 = 2500
-
+var UniqueId string = "Default"
 func printJSON(resp interface{}) {
 	b, err := json.Marshal(resp)
 	if err != nil {
@@ -68,6 +68,17 @@ func printRespJSON(resp proto.Message) {
 // to command actions.
 func actionDecorator(f func(*cli.Context) error) func(*cli.Context) error {
 	return func(c *cli.Context) error {
+		//code edit
+		fmt.Println(" userd id is set to global variable after this line ")
+		UniqueId = c.GlobalString("User_Id")
+		fmt.Printf(" unique id is set now %s \n", UniqueId)
+		//-----end/////
+		//custom domain check to get userid from  domain name in cli
+		fmt.Printf("\nrestlisten domain %s\n", c.GlobalString("rpcserver"))
+		//if( c.GlobalString("rpcserver")[0:(strings.LastIndex(c.GlobalString("rpcserver"),":"))] != "localhost") {
+		//UniqueId= c.GlobalString("rpcserver")[0:(strings.LastIndex(c.GlobalString("rpcserver"),"."))]
+		fmt.Printf("unique id is set now %s \n", UniqueId)
+		//}
 		if err := f(c); err != nil {
 			s, ok := status.FromError(err)
 
@@ -1414,6 +1425,7 @@ mnemonicCheck:
 
 		genSeedReq := &lnrpc.GenSeedRequest{
 			AezeedPassphrase: aezeedPass,
+			User_Id:          UniqueId,
 		}
 		seedResp, err := client.GenSeed(ctxb, genSeedReq)
 		if err != nil {
@@ -1453,6 +1465,7 @@ mnemonicCheck:
 		AezeedPassphrase:   aezeedPass,
 		RecoveryWindow:     recoveryWindow,
 		ChannelBackups:     chanBackups,
+		User_Id:            UniqueId,
 	}
 	if _, err := client.InitWallet(ctxb, req); err != nil {
 		return err
@@ -1589,6 +1602,7 @@ func unlock(ctx *cli.Context) error {
 	req := &lnrpc.UnlockWalletRequest{
 		WalletPassword: pw,
 		RecoveryWindow: recoveryWindow,
+		User_Id:        UniqueId,
 	}
 	_, err = client.UnlockWallet(ctxb, req)
 	if err != nil {
@@ -1646,6 +1660,7 @@ func changePassword(ctx *cli.Context) error {
 	req := &lnrpc.ChangePasswordRequest{
 		CurrentPassword: currentPw,
 		NewPassword:     newPw,
+		User_Id:         UniqueId,
 	}
 
 	_, err = client.ChangePassword(ctxb, req)
