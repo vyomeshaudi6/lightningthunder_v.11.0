@@ -38,7 +38,6 @@ import (
 	"github.com/lightningnetwork/lnd/lncfg"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/lightningnetwork/lnd/lnwallet/btcwallet"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"github.com/lightningnetwork/lnd/signal"
 	"github.com/lightningnetwork/lnd/tor"
@@ -279,9 +278,9 @@ func Main( lisCfg ListenerCfg, shutdownChan <-chan struct{}) error {
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-
+	
 	// Only process macaroons if --no-macaroons isn't set.
-	tlsCfg, restCreds, restProxyDest, cleanUp, err := getTLSConfig(Controller_Config)
+	tlsCfg, restCreds,cleanUp, err := getTLSConfig(Controller_Config)
 	if err != nil {
 		err := fmt.Errorf("unable to load TLS credentials: %v", err)
 		ltndLog.Error(err)
@@ -461,7 +460,7 @@ func Main( lisCfg ListenerCfg, shutdownChan <-chan struct{}) error {
 		//custom tls code edit 
 		Cfg.TLSCertPath = filepath.Join(Cfg.graphDir, DefaultTLSCertFilename)
 		Cfg.TLSKeyPath = filepath.Join(Cfg.graphDir, DefaultTLSKeyFilename)
-		tlsCfg, restCreds, err := getTLSConfig(Cfg)
+		tlsCfg, restCreds,cleanUp, err := getTLSConfig(Cfg)
 		if err != nil {
 		err = fmt.Errorf("unable to load TLS credentials: %v", err)
 		ltndLog.Error(err)
@@ -594,7 +593,7 @@ func Main( lisCfg ListenerCfg, shutdownChan <-chan struct{}) error {
 	var towerClientDB *wtdb.ClientDB
 	if Cfg.WtClient.Active {
 		var err error
-		towerClientDB, err = wtdb.OpenClientDB(Cfg.localDatabaseDir())
+		towerClientDB, err = wtdb.OpenClientDB(Cfg.localDatabaseDir(UserId))
 		if err != nil {
 			err := fmt.Errorf("unable to open watchtower client "+
 				"database: %v", err)
@@ -894,7 +893,7 @@ func getTLSConfig(cfg *Config) (*tls.Config, *credentials.TransportCredentials,
 			cfg.TLSDisableAutofill, cert.DefaultAutogenValidity,
 		)
 		if err != nil {
-			return nil, nil, "", nil, err
+			return nil, nil, nil, err
 		}
 		rpcsLog.Infof("Done generating TLS certificates")
 	}
@@ -903,7 +902,7 @@ func getTLSConfig(cfg *Config) (*tls.Config, *credentials.TransportCredentials,
 		cfg.TLSCertPath, cfg.TLSKeyPath,
 	)
 	if err != nil {
-		return nil, nil, "", nil, err
+		return nil, nil, nil, err
 	}
 
 	// We check whether the certifcate we have on disk match the IPs and
@@ -917,7 +916,7 @@ func getTLSConfig(cfg *Config) (*tls.Config, *credentials.TransportCredentials,
 			cfg.TLSExtraDomains, cfg.TLSDisableAutofill,
 		)
 		if err != nil {
-			return nil, nil, "", nil, err
+			return nil, nil, nil, err
 		}
 	}
 
@@ -929,12 +928,12 @@ func getTLSConfig(cfg *Config) (*tls.Config, *credentials.TransportCredentials,
 
 		err := os.Remove(cfg.TLSCertPath)
 		if err != nil {
-			return nil, nil, "", nil, err
+			return nil, nil, nil, err
 		}
 
 		err = os.Remove(cfg.TLSKeyPath)
 		if err != nil {
-			return nil, nil, "", nil, err
+			return nil, nil, nil, err
 		}
 
 		rpcsLog.Infof("Renewing TLS certificates...")
@@ -944,7 +943,7 @@ func getTLSConfig(cfg *Config) (*tls.Config, *credentials.TransportCredentials,
 			cfg.TLSDisableAutofill, cert.DefaultAutogenValidity,
 		)
 		if err != nil {
-			return nil, nil, "", nil, err
+			return nil, nil, nil, err
 		}
 		rpcsLog.Infof("Done renewing TLS certificates")
 
@@ -953,7 +952,7 @@ func getTLSConfig(cfg *Config) (*tls.Config, *credentials.TransportCredentials,
 			cfg.TLSCertPath, cfg.TLSKeyPath,
 		)
 		if err != nil {
-			return nil, nil, "", nil, err
+			return nil, nil, nil, err
 		}
 	}
 
@@ -961,7 +960,7 @@ func getTLSConfig(cfg *Config) (*tls.Config, *credentials.TransportCredentials,
 
 	restCreds, err := credentials.NewClientTLSFromFile(cfg.TLSCertPath, "")
 	if err != nil {
-		return nil, nil, "", nil, err
+		return nil, nil, nil, err
 	}
 
 	
@@ -1263,7 +1262,7 @@ func waitForWalletPassword(Confg *Config, restEndpoints []net.Addr,
 
 			Confg.graphDir = filepath.Join("test_data_PrvW",
 			defaultGraphSubDirname,
-			normalizeNetwork(activeNetParams.Name), initMsg.UniqueId)
+			normalizeNetwork(Confg.ActiveNetParams.Name), initMsg.UniqueId)
 
 		// added userid for multiple server instance
 		UserId = initMsg.UniqueId
@@ -1280,11 +1279,11 @@ func waitForWalletPassword(Confg *Config, restEndpoints []net.Addr,
 		//ltndLog.Infof("config file path" + Cfg.ConfigFile)
 		//code modify by -----start--------
 		//netDir := btcwallet.NetworkDir(
-		//	chainConfig.ChainDir, activeNetParams.Params,
+		//	chainConfig.ChainDir, Confg.ActiveNetParams.Params,
 		//)
 		Cfg.graphDir = filepath.Join("test_data_PrvW",
 			defaultGraphSubDirname,
-			normalizeNetwork(activeNetParams.Name), initMsg.UniqueId)
+			normalizeNetwork(Confg.ActiveNetParams.Name), initMsg.UniqueId)
 		netDir := Cfg.graphDir
 		//code modify by -----end--------
 		loader := wallet.NewLoader(
@@ -1352,7 +1351,7 @@ func waitForWalletPassword(Confg *Config, restEndpoints []net.Addr,
 
 		Confg.graphDir = filepath.Join("test_data_PrvW",
 			defaultGraphSubDirname,
-			normalizeNetwork(activeNetParams.Name), unlockMsg.UniqueId)
+			normalizeNetwork(Confg.ActiveNetParams.Name), unlockMsg.UniqueId)
 		// added userid for multiple server instance
 		UserId = unlockMsg.UniqueId
 		//custom configuration code edit for each node
@@ -1370,7 +1369,7 @@ func waitForWalletPassword(Confg *Config, restEndpoints []net.Addr,
 		/////----channel.db -----
          	Cfg.graphDir = filepath.Join("test_data_PrvW",
 			defaultGraphSubDirname,
-			normalizeNetwork(activeNetParams.Name), unlockMsg.UniqueId)
+			normalizeNetwork(Cfg.ActiveNetParams.Name), unlockMsg.UniqueId)
 		ltndLog.Infof("lnd.go before opening getbackend")
 		chanDbBackend, err := Cfg.DB.GetBackend(ctx,
 			Cfg.localDatabaseDir(unlockMsg.UniqueId), Cfg.networkName(),
@@ -1436,7 +1435,7 @@ func initializeDatabases(ctx context.Context,
 	startOpenTime := time.Now()
 
 	databaseBackends, err := cfg.DB.GetBackends(
-		ctx, cfg.localDatabaseDir(), cfg.networkName(),
+		ctx, cfg.localDatabaseDir(UserId), cfg.networkName(),
 	)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("unable to obtain database "+

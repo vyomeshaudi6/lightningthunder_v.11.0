@@ -235,7 +235,7 @@ type Config struct {
 
 	Tor *lncfg.Tor `group:"Tor" namespace:"tor"`
 
-	SubRPCServers subRPCServerConfigs `group:"subrpc"`
+	SubRPCServers *subRPCServerConfigs `group:"subrpc"`
 
 	Hodl *hodl.Config `group:"hodl" namespace:"hodl"`
 
@@ -380,7 +380,7 @@ func DefaultConfig() Config {
 		MinBackoff:         defaultMinBackoff,
 		MaxBackoff:         defaultMaxBackoff,
 		ConnectionTimeout:  tor.DefaultConnTimeout,
-		SubRPCServers: subRPCServerConfigs{
+		SubRPCServers: &subRPCServerConfigs{
 			SignRPC:   &signrpc.Config{},
 			RouterRPC: routerrpc.DefaultConfig(),
 		},
@@ -461,7 +461,7 @@ func DefaultConfig() Config {
 // 	2) Pre-parse the command line to check for an alternative config file
 // 	3) Load configuration file overwriting defaults with any specified options
 // 	4) Parse CLI options and overwrite/add any specified options
-func LoadConfig((User_Id string) (*Config, error) {
+func LoadConfig(User_Id string) (*Config, error) {
 	// Pre-parse the command line options to pick up an alternative config
 	// file.
 	preCfg := DefaultConfig()
@@ -495,7 +495,7 @@ func LoadConfig((User_Id string) (*Config, error) {
 	//code edit for custom lnd config for each node
 	customlndConfigPath := filepath.Join("~/gocode/dev/test_data_PrvW",
 			defaultGraphSubDirname,
-			normalizeNetwork(activeNetParams.Name), User_Id,lncfg.DefaultConfigFilename)
+			normalizeNetwork(preCfg.ActiveNetParams.Name), User_Id,lncfg.DefaultConfigFilename)
 
 	if User_Id != ""  {
 	 preCfg.ConfigFile = CleanAndExpandPath(customlndConfigPath)
