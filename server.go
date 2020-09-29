@@ -375,7 +375,7 @@ func newServer(cfg *Config, listenAddrs []net.Addr,
 	// the same directory as the channel graph database. We don't need to
 	// replicate this data, so we'll store it locally.
 	sharedSecretPath := filepath.Join(
-		cfg.localDatabaseDir(UserId), defaultSphinxDbName,
+		cfg.localDatabaseDir(), defaultSphinxDbName,
 	)
 	replayLog := htlcswitch.NewDecayedLog(sharedSecretPath, cc.chainNotifier)
 	sphinxRouter := sphinx.NewRouter(

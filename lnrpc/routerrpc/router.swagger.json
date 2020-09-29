@@ -4,6 +4,10 @@
     "title": "routerrpc/router.proto",
     "version": "version not set"
   },
+  "schemes": [
+    "http",
+    "https"
+  ],
   "consumes": [
     "application/json"
   ],
@@ -19,22 +23,7 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "$ref": "#/definitions/routerrpcHtlcEvent"
-                },
-                "error": {
-                  "$ref": "#/definitions/runtimeStreamError"
-                }
-              },
-              "title": "Stream result of routerrpcHtlcEvent"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/x-stream-definitions/routerrpcHtlcEvent"
             }
           }
         },
@@ -53,12 +42,6 @@
             "schema": {
               "$ref": "#/definitions/routerrpcQueryMissionControlResponse"
             }
-          },
-          "default": {
-            "description": "An unexpected error response",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
-            }
           }
         },
         "tags": [
@@ -75,12 +58,6 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/routerrpcQueryProbabilityResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
             }
           }
         },
@@ -125,12 +102,6 @@
             "schema": {
               "$ref": "#/definitions/routerrpcResetMissionControlResponse"
             }
-          },
-          "default": {
-            "description": "An unexpected error response",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
-            }
           }
         },
         "parameters": [
@@ -157,12 +128,6 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/routerrpcBuildRouteResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
             }
           }
         },
@@ -191,12 +156,6 @@
             "schema": {
               "$ref": "#/definitions/routerrpcRouteFeeResponse"
             }
-          },
-          "default": {
-            "description": "An unexpected error response",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
-            }
           }
         },
         "parameters": [
@@ -224,12 +183,6 @@
             "schema": {
               "$ref": "#/definitions/lnrpcHTLCAttempt"
             }
-          },
-          "default": {
-            "description": "An unexpected error response",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
-            }
           }
         },
         "parameters": [
@@ -255,22 +208,7 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "$ref": "#/definitions/lnrpcPayment"
-                },
-                "error": {
-                  "$ref": "#/definitions/runtimeStreamError"
-                }
-              },
-              "title": "Stream result of lnrpcPayment"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/x-stream-definitions/lnrpcPayment"
             }
           }
         },
@@ -297,22 +235,7 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "$ref": "#/definitions/lnrpcPayment"
-                },
-                "error": {
-                  "$ref": "#/definitions/runtimeStreamError"
-                }
-              },
-              "title": "Stream result of lnrpcPayment"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
+              "$ref": "#/x-stream-definitions/lnrpcPayment"
             }
           }
         },
@@ -1351,27 +1274,6 @@
     "routerrpcSettleEvent": {
       "type": "object"
     },
-    "runtimeError": {
-      "type": "object",
-      "properties": {
-        "error": {
-          "type": "string"
-        },
-        "code": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "message": {
-          "type": "string"
-        },
-        "details": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/protobufAny"
-          }
-        }
-      }
-    },
     "runtimeStreamError": {
       "type": "object",
       "properties": {
@@ -1396,6 +1298,56 @@
           }
         }
       }
+    }
+  },
+  "x-stream-definitions": {
+    "lnrpcPayment": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/lnrpcPayment"
+        },
+        "error": {
+          "$ref": "#/definitions/runtimeStreamError"
+        }
+      },
+      "title": "Stream result of lnrpcPayment"
+    },
+    "routerrpcForwardHtlcInterceptRequest": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/routerrpcForwardHtlcInterceptRequest"
+        },
+        "error": {
+          "$ref": "#/definitions/runtimeStreamError"
+        }
+      },
+      "title": "Stream result of routerrpcForwardHtlcInterceptRequest"
+    },
+    "routerrpcHtlcEvent": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/routerrpcHtlcEvent"
+        },
+        "error": {
+          "$ref": "#/definitions/runtimeStreamError"
+        }
+      },
+      "title": "Stream result of routerrpcHtlcEvent"
+    },
+    "routerrpcPaymentStatus": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/routerrpcPaymentStatus"
+        },
+        "error": {
+          "$ref": "#/definitions/runtimeStreamError"
+        }
+      },
+      "title": "Stream result of routerrpcPaymentStatus"
     }
   }
 }

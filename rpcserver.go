@@ -517,7 +517,7 @@ type rpcServer struct {
 
 	// routerBackend contains the backend implementation of the router
 	// rpc sub server.
-	routerBackend routerrpc.RouterBackend
+	routerBackend *routerrpc.RouterBackend
 
 	// chanPredicate is used in the bidirectional ChannelAcceptor streaming
 	// method.
@@ -549,7 +549,7 @@ var _ lnrpc.LightningServer = (*rpcServer)(nil)
 // base level options passed to the grPC server. This typically includes things
 // like requiring TLS, etc.
 func newRPCServer(cfg *Config, s *server, macService *macaroons.Service,
-	subServerCgs subRPCServerConfigs, serverOpts []grpc.ServerOption,
+	subServerCgs *subRPCServerConfigs, serverOpts []grpc.ServerOption,
 	restDialOpts []grpc.DialOption, restProxyDest string,
 	atpl *autopilot.Manager, invoiceRegistry *invoices.InvoiceRegistry,
 	tower *watchtower.Standalone, tlsCfg *tls.Config,
@@ -563,8 +563,7 @@ func newRPCServer(cfg *Config, s *server, macService *macaroons.Service,
 		return nil, err
 	}
 	graph := s.localChanDB.ChannelGraph()
-	routerBackend := routerrpc.RouterBackend{
-		User_Id:  UserId,
+	routerBackend := &routerrpc.RouterBackend{
 		SelfNode: selfNode.PubKeyBytes,
 		FetchChannelCapacity: func(chanID uint64) (btcutil.Amount,
 			error) {
@@ -629,7 +628,7 @@ func newRPCServer(cfg *Config, s *server, macService *macaroons.Service,
 	// can create each sub-server!
 	registeredSubServers := lnrpc.RegisteredSubServers()
 	for _, subServer := range registeredSubServers {
-		subServerInstance, macPerms, err := subServer.New(subServerCgs, UserId)
+		subServerInstance, macPerms, err := subServer.New(subServerCgs)
 		if err != nil {
 			return nil, err
 		}
@@ -639,10 +638,7 @@ func newRPCServer(cfg *Config, s *server, macService *macaroons.Service,
 		// interceptors below.
 		subServers = append(subServers, subServerInstance)
 		subServerPerms = append(subServerPerms, macPerms)
-	// storing subserverindtances of particular subserver for all nodes vyomresh
-		routerrpc.Subserverpointers = append(routerrpc.Subserverpointers, subServerInstance)
-
-
+	
 	}
 
 	// Next, we need to merge the set of sub server macaroon permissions

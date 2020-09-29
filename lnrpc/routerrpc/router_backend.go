@@ -74,7 +74,7 @@ type RouterBackend struct {
 	// InterceptableForwarder exposes the ability to intercept forward events
 	// by letting the router register a ForwardInterceptor.
 	InterceptableForwarder htlcswitch.InterceptableHtlcForwarder
-	User_Id                string
+	
 }
 
 // MissionControl defines the mission control dependencies of routerrpc.
