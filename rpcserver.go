@@ -5383,7 +5383,9 @@ func (r *rpcServer) StopDaemon(ctx context.Context,
 	if !r.cfg.NoMacaroons {
 	r.macService.Close()
 	}
-	r.server.chanDB.Close()
+	//r.server.chanDB.Close()
+	r.server.localChanDB.Close()
+	r.server.remoteChanDB.Close()
 	r.Loader. UnloadWallet()
 	r.Stop() // rpc server stopped
 	r.server.Stop() //server instance stopped

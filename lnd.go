@@ -49,7 +49,9 @@ var (
 	
 	registeredChains = newChainRegistry()
 
-	ChanDB *channeldb.DB // channel.db
+	//ChanDB *channeldb.DB // channel.db
+	LocalChanDB  *channeldb.DB
+	RemoteChanDB  *channeldb.DB
 	// networkDir is the path to the directory of the currently active
 	// network. This path will hold the files related to each different
 	// network.
@@ -286,7 +288,7 @@ func Main( lisCfg ListenerCfg, shutdownChan <-chan struct{}) error {
 		ltndLog.Error(err)
 		return err
 	}
-
+	defer cleanUp()
 	serverCreds := credentials.NewTLS(tlsCfg)
 	serverOpts := []grpc.ServerOption{grpc.Creds(serverCreds)}
 
@@ -466,7 +468,7 @@ func Main( lisCfg ListenerCfg, shutdownChan <-chan struct{}) error {
 		ltndLog.Error(err)
 		return err
 		}
-
+		defer cleanUp()
 		serverCreds := credentials.NewTLS(tlsCfg)
 		serverOpts := []grpc.ServerOption{grpc.Creds(serverCreds)}
 	
@@ -482,7 +484,10 @@ func Main( lisCfg ListenerCfg, shutdownChan <-chan struct{}) error {
 		),
 		}
 
-		defer ChanDB.Close() // channel.db
+		//defer ChanDB.Close() // channel.db
+		defer LocalChanDB.Close() //channeldb 
+		defer RemoteChanDB.Close() //channeldb
+		
 		//walletaction response port for each node
 		// rpcPortListening = Cfg.RPCListeners[i+1].String()
 		// restPortListening = Cfg.RESTListeners[i+1].String()
@@ -553,7 +558,7 @@ func Main( lisCfg ListenerCfg, shutdownChan <-chan struct{}) error {
 	// hints and also the wallet itself, for these two we want them to be
 	// replicated, so we'll pass in the remote channel DB instance.
 	activeChainControl, err := newChainControlFromConfig(
-		Cfg, localChanDB, remoteChanDB, privateWalletPw, publicWalletPw,
+		Cfg, LocalChanDB, RemoteChanDB, privateWalletPw, publicWalletPw,
 		walletInitParams.Birthday, walletInitParams.RecoveryWindow,
 		walletInitParams.Wallet, neutrinoCS,
 	)
@@ -708,7 +713,7 @@ func Main( lisCfg ListenerCfg, shutdownChan <-chan struct{}) error {
 	// Set up the core server which will listen for incoming peer
 	// connections.
 	server, err := newServer(
-		Cfg, Cfg.Listeners, localChanDB, remoteChanDB, towerClientDB,
+		Cfg, Cfg.Listeners, LocalChanDB, RemoteChanDB, towerClientDB,
 		activeChainControl, &idKeyDesc, walletInitParams.ChansToRestore,
 		chainedAcceptor, torController,UserId,
 	)
@@ -1307,32 +1312,15 @@ func waitForWalletPassword(Confg *Config, restEndpoints []net.Addr,
 			return nil, err
 		}
 /////----channel.db -----
-		chanDbBackend, err := Cfg.DB.GetBackend(ctx,
-			Cfg.localDatabaseDir(initMsg.UniqueId), Cfg.networkName(),
-		)
-		if err != nil {
-			ltndLog.Error(err)
-			return nil, err
-		}
-		ltndLog.Infof("lnd.go before opening channeldb.open")
-		// Open the channeldb, which is dedicated to storing channel, and
-		// network related metadata.
-		ChanDB, err = channeldb.CreateWithBackend(
-			chanDbBackend,
-			channeldb.OptionSetRejectCacheSize(Cfg.Caches.RejectCacheSize),
-			channeldb.OptionSetChannelCacheSize(Cfg.Caches.ChannelCacheSize),
-			channeldb.OptionSetSyncFreelist(Cfg.SyncFreelist),
-			channeldb.OptionDryRunMigration(Cfg.DryRunMigration),
-		)
-		switch {
-		case err == channeldb.ErrDryRunMigrationOK:
-			ltndLog.Infof("%v, exiting", err)
-			return nil, err
-
-		case err != nil:
-			ltndLog.Errorf("Unable to open channeldb: %v", err)
-			return nil, err
-		}
+		LocalChanDB, RemoteChanDB, _, err = initializeDatabases(ctx, Cfg,initMsg.UniqueId)
+	switch {
+	case err == channeldb.ErrDryRunMigrationOK:
+		ltndLog.Infof("%v, exiting", err)
+		return nil,nil
+	case err != nil:
+		return nil ,nil
+	}
+		
 		ltndLog.Infof("lnd.go after opening channeldb.open channeled opened success")
 		return &WalletUnlockParams{
 			Password:       password,
@@ -1366,39 +1354,20 @@ func waitForWalletPassword(Confg *Config, restEndpoints []net.Addr,
 		}
 		ltndLog.Infof("lnd.go after loading configuration")
 		ltndLog.Infof("config file path" + Cfg.ConfigFile)
-		/////----channel.db -----
+		
          	Cfg.graphDir = filepath.Join("test_data_PrvW",
 			defaultGraphSubDirname,
 			normalizeNetwork(Cfg.ActiveNetParams.Name), unlockMsg.UniqueId)
-		ltndLog.Infof("lnd.go before opening getbackend")
-		chanDbBackend, err := Cfg.DB.GetBackend(ctx,
-			Cfg.localDatabaseDir(unlockMsg.UniqueId), Cfg.networkName(),
-		)
-		if err != nil {
-			ltndLog.Error(err)
-			return nil, err
-		}
-		ltndLog.Infof("lnd.go after opening getbackend")
-		ltndLog.Infof("lnd.go before opening create with backend")
-		// Open the channeldb, which is dedicated to storing channel, and
-		// network related metadata.
-		ChanDB, err = channeldb.CreateWithBackend(
-			chanDbBackend,
-			channeldb.OptionSetRejectCacheSize(Cfg.Caches.RejectCacheSize),
-			channeldb.OptionSetChannelCacheSize(Cfg.Caches.ChannelCacheSize),
-			channeldb.OptionSetSyncFreelist(Cfg.SyncFreelist),
-			channeldb.OptionDryRunMigration(Cfg.DryRunMigration),
-		)
-		ltndLog.Infof("lnd.go after opening create with backend")
-		switch {
-		case err == channeldb.ErrDryRunMigrationOK:
-			ltndLog.Infof("%v, exiting", err)
-			return nil, err
+		/////----channel.db -----
+		LocalChanDB, RemoteChanDB, _, err = initializeDatabases(ctx, Cfg,unlockMsg.UniqueId)
+	switch {
+	case err == channeldb.ErrDryRunMigrationOK:
+		ltndLog.Infof("%v, exiting", err)
+		return nil,nil
+	case err != nil:
+		return nil,nil
+	}
 
-		case err != nil:
-			ltndLog.Errorf("Unable to open channeldb: %v", err)
-			return nil, err
-		}
 		ltndLog.Infof("lnd.go after opening channeldb.open channeled opened success")
 			
 		Loader = unlockMsg.Loader	
@@ -1422,7 +1391,7 @@ func waitForWalletPassword(Confg *Config, restEndpoints []net.Addr,
 // both point to the same local database. A function closure that closes all
 // opened databases is also returned.
 func initializeDatabases(ctx context.Context,
-	cfg *Config) (*channeldb.DB, *channeldb.DB, func(), error) {
+	cfg *Config,UserId string) (*channeldb.DB, *channeldb.DB, func(), error) {
 
 	ltndLog.Infof("Opening the main database, this might take a few " +
 		"minutes...")
