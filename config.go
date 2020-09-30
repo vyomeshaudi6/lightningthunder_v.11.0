@@ -514,7 +514,7 @@ func LoadConfig(User_Id string) (*Config, error) {
 
 		configFileError = err
 	}
- 	//fmt.Println("cfg.ConfigFile : %t , configFilePath : %t , cfg.LndDir %t",cfg.ConfigFile,configFilePath ,cfg.LndDir)
+ 	fmt.Println("cfg.ConfigFile : %t , configFilePath : %t , cfg.LndDir %t",cfg.ConfigFile,configFilePath ,cfg.LndDir)
 	// Finally, parse the remaining command line options again to ensure
 	// they take precedence.
 	if _, err := flags.Parse(&cfg); err != nil {
